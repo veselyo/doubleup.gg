@@ -8,7 +8,7 @@ import os
 from dotenv import load_dotenv
 
 # Set current set release date
-CURRENT_SET_DATE = int(datetime(2025, 7, 30).timestamp())
+CURRENT_SET_DATE = int(datetime(2025, 12, 3).timestamp())
 
 # Load environment variables from .env file
 load_dotenv()
@@ -42,12 +42,13 @@ global REGION, PLATFORM
 # Trait name dictionary to map from API names to in-game names since Riot Games
 # doesn't have them accurately in the API
 CURRENT_SET_TRAIT_MAPPING = {
-    'OldMentor': 'Mentor',
-    'GemForce': 'CrystalGambit',
-    'Spellslinger': 'Sorcerer',
-    'Empyrean': 'Wraith',
-    'SentaiRanger': 'MightyMech',
-    'Destroyer': 'Executioner',
+    'Explorer': 'Ixtal',
+    'Sorcerer': 'Arcanist',
+    'ShadowIsles': "Shadow Isles",
+    'Brawler': 'Bruiser',
+    'Magus': "Disruptor",
+    "Rapidfire": "Quickstriker",
+    "DarkinWeapon": "Darkin"
 }
 
 def make_request(url, params=None):
@@ -136,13 +137,14 @@ def extract_active_traits(player_match_data):
     for trait in player_match_data.get('traits', []):
         # Only include active traits
         if trait.get('tier_current', 0) > 0:
-            # Remove TFT15_ prefix and map to correct name
-            api_name = trait['name'].replace('TFT15_', '')
+            # Remove TFT16_ prefix and map to correct name
+            api_name = trait['name'].replace('TFT16_', '')
             display_name = CURRENT_SET_TRAIT_MAPPING.get(api_name, api_name)
             traits.append({
                 'name': display_name,
-                'num_units': trait['num_units'],
-                'tier': trait['tier_current']
+                'tier_current': trait['tier_current'],
+                'tier_total': trait['tier_total'],
+                'num_units': trait['num_units']
             })
     
     # Sort by number of units (descending)
@@ -151,21 +153,32 @@ def extract_active_traits(player_match_data):
 
 def format_top_traits(traits):
     """Format top traits for display on dashboard. If no traits are active,
-    return 'Built Different'. Tries to return traits with 3 or more units,
-    otherwise returns traits with 2 or more units."""
+    return 'Built Different'. Tries to return gold or silver traits, or flex."""
 
     if not traits:
-        return "Built Different"
+        return "No Trait Gaming"
     
-    # Try to get traits with 3 or more units
-    top_traits = [t for t in traits if t['num_units'] >= 3]
-    
-    # If none found, fall back to traits with 2 or more units
-    if not top_traits:
-        top_traits = [t for t in traits if t['num_units'] >= 2]
+    # Try to get prismatic traits
+    top_traits = [t for t in traits if t['tier_current'] >= 4]
 
     if not top_traits:
-        return "Built Different"
+        # Try to get gold traits
+        top_traits = [t for t in traits if t['tier_current'] >= 3]
+
+    if not top_traits:
+        # Try to get silver traits
+        top_traits = [t for t in traits if t['tier_current'] >= 2 and
+                                           t['num_units'] > 3]
+    
+    # Get Flex or no traits
+    if not top_traits:
+        top_traits = [t for t in traits if t['tier_current'] >= 1 and
+                                           t['tier_total'] != 1]
+
+        if not top_traits:
+            return "No Trait Gaming"
+        else:
+            return "Flex"
     
     return ', '.join(f"{t['num_units']} {t['name']}" for t in top_traits)
 
@@ -264,7 +277,7 @@ def calculate_favorite_traits(games, player_num):
         current_traits = []
         for trait in game.get(f'player{player_num}_traits', '').split(', '):
             # Extract count and name from format like "4 Sentinel"
-            if trait != 'Built Different':
+            if trait != 'No Trait Gaming' and trait != 'Flex':
                 parts = trait.split(' ', 1)
                 count = int(parts[0])
                 name = parts[1]
