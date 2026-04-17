@@ -3,12 +3,19 @@ from datetime import datetime
 from urllib.parse import quote
 import time
 import logging
-import json
 import os
+import json
 from dotenv import load_dotenv
 
-# Set current set release date
-CURRENT_SET_DATE = int(datetime(2025, 12, 3).timestamp())
+# Map set number to date
+
+GET_SET_DATES = {
+    17: (int(datetime(2026, 4, 16).timestamp()), None),
+    16: (int(datetime(2025, 12, 3).timestamp()), int(datetime(2026, 4, 16).timestamp())),
+    15: (int(datetime(2025, 7, 30).timestamp()), int(datetime(2025, 12, 3).timestamp())),
+    14: (int(datetime(2025, 4, 2).timestamp()), int(datetime(2025, 7, 30).timestamp())),
+    13: (int(datetime(2024, 11, 20).timestamp()), int(datetime(2025, 4, 2).timestamp())), 
+}
 
 # Load environment variables from .env file
 load_dotenv()
@@ -39,17 +46,26 @@ SERVER_CONFIGS = {
 # Global variables for server configuration
 global REGION, PLATFORM
 
+_DDRAGON_DIR = os.path.join(os.path.dirname(__file__), 'ddragon')
+
+def _load_ddragon_traits(set_number):
+    prefix = f'TFT{set_number}_'
+    for filename in os.listdir(_DDRAGON_DIR):
+        if not filename.endswith('.json'):
+            continue
+        with open(os.path.join(_DDRAGON_DIR, filename)) as f:
+            data = json.load(f)
+        result = {
+            k.replace(prefix, ''): v['name']
+            for k, v in data['data'].items()
+            if k.startswith(prefix)
+        }
+        if result:
+            return result
+    return {}
+
 # Trait name dictionary to map from API names to in-game names since Riot Games
-# doesn't have them accurately in the API
-CURRENT_SET_TRAIT_MAPPING = {
-    'Explorer': 'Ixtal',
-    'Sorcerer': 'Arcanist',
-    'ShadowIsles': "Shadow Isles",
-    'Brawler': 'Bruiser',
-    'Magus': "Disruptor",
-    "Rapidfire": "Quickstriker",
-    "DarkinWeapon": "Darkin"
-}
+SET_TRAIT_MAPPING = {n: _load_ddragon_traits(n) for n in GET_SET_DATES}
 
 def make_request(url, params=None):
     """Make a request to the Riot API. If we exceed the rate limit, wait 5
@@ -109,16 +125,19 @@ def get_double_up_rank(puuid):
     else:
         return "Unranked"
 
-def get_match_history(puuid):
+def get_match_history(puuid, set_number):
     """Get match IDs for a given puuid from current set."""
 
     url = (f"https://{REGION}.api.riotgames.com/tft/match/v1/"
            f"matches/by-puuid/{puuid}/ids")
     
+    start_date, end_date = GET_SET_DATES.get(set_number)
+    
     params = {
         "start": 0,
         "count": 9999,
-        "startTime": CURRENT_SET_DATE
+        "startTime": start_date,
+        "endTime": end_date
     }
     logger.info(f"Fetching TFT match history from current set...")
     return make_request(url, params)
@@ -130,16 +149,17 @@ def get_match_details(match_id):
     logger.info(f"Fetching TFT match details for {match_id}...")
     return make_request(url)
 
-def extract_active_traits(player_match_data):
+def extract_active_traits(player_match_data, set_number):
     """Extract active traits for a player given match data"""
 
     traits = []
     for trait in player_match_data.get('traits', []):
         # Only include active traits
         if trait.get('tier_current', 0) > 0:
-            # Remove TFT16_ prefix and map to correct name
-            api_name = trait['name'].replace('TFT16_', '')
-            display_name = CURRENT_SET_TRAIT_MAPPING.get(api_name, api_name)
+            # Remove prefix and map to correct name
+            api_name = trait['name'].replace(f'TFT{set_number}_', '')
+            display_name = SET_TRAIT_MAPPING.get(set_number, {}).get(api_name,
+                                                                     api_name)
             traits.append({
                 'name': display_name,
                 'tier_current': trait['tier_current'],
@@ -182,11 +202,11 @@ def format_top_traits(traits):
     
     return ', '.join(f"{t['num_units']} {t['name']}" for t in top_traits)
 
-def filter_double_up_games_together(puuid1, puuid2):
+def filter_double_up_games_together(puuid1, puuid2, set_number):
     """Given a puuid of two players, return all their Double Up games info."""
 
     # Get TFT match history for player 1
-    match_ids, status_code = get_match_history(puuid1)
+    match_ids, status_code = get_match_history(puuid1, set_number)
     if not match_ids:
         if status_code == 404 or status_code == 200:
             logger.error(f"Player 1 has no TFT matches")
@@ -243,8 +263,8 @@ def filter_double_up_games_together(puuid1, puuid2):
         placement = (player1_match_data['placement'] + 1) // 2
         
         # Get top traits for both players and format them properly
-        traits1 = format_top_traits(extract_active_traits(player1_match_data))
-        traits2 = format_top_traits(extract_active_traits(player2_match_data))
+        traits1 = format_top_traits(extract_active_traits(player1_match_data, set_number))
+        traits2 = format_top_traits(extract_active_traits(player2_match_data, set_number))
 
         # Convert game time to YYYY-MM-DD HH:MM
         date_and_time = (datetime.fromtimestamp(info['game_datetime'] / 1000)
@@ -298,7 +318,7 @@ def calculate_favorite_traits(games, player_num):
                            key=lambda x: (-x[1], x[0]))[:3]
     return [{'name': name, 'count': count} for name, count in sorted_traits]
 
-def get_stats(game_name1, tag_line1, game_name2, tag_line2, server):
+def get_stats(game_name1, tag_line1, game_name2, tag_line2, server, set_number):
     """Returns a dictionary with all stats displayed on the dashboard for two
     players and their Double Up games together"""
 
@@ -333,7 +353,7 @@ def get_stats(game_name1, tag_line1, game_name2, tag_line2, server):
     rank2 = get_double_up_rank(puuid2)
     
     # Find all Double Up games with partner
-    match_history, status_code = filter_double_up_games_together(puuid1, puuid2)
+    match_history, status_code = filter_double_up_games_together(puuid1, puuid2, set_number)
     if not match_history:
         if status_code == 404 or status_code == 200:
             logger.info(f"No Double Up games together found")

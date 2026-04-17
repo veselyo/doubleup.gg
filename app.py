@@ -35,12 +35,12 @@ def save_cached_data(stats):
         logger.error(f"Error saving to cache file: {str(e)}")
 
 def fetch_fresh_stats(player1_name, player1_tag, player2_name, player2_tag,
-                      server):
+                      server, set_number):
     """Fetch fresh stats from the API."""
     logger.debug("Fetching fresh stats from API")
     try:
         stats = get_stats(player1_name, player1_tag, player2_name, player2_tag,
-                          server)
+                          server, set_number)
         return stats
     except Exception as e:
         logger.error(f"Error fetching stats: {str(e)}")
@@ -73,7 +73,8 @@ def index():
             'wins': 0,
             'win_rate': 0,
             'best_streak': 0,
-            'match_history': []
+            'match_history': [],
+            'set_number': None
         }
     
     return render_template('index.html', stats=stats,
@@ -92,6 +93,7 @@ def update_stats():
         player2_name = request.args.get('player2Name')
         player2_tag = request.args.get('player2Tag')
         server = request.args.get('server')
+        set_number = int(request.args.get('setNumber'))
 
         if not all([player1_name, player1_tag, player2_name, player2_tag,
                     server]):
@@ -103,7 +105,8 @@ def update_stats():
         
         # Fetch new data
         new_stats = fetch_fresh_stats(player1_name, player1_tag, 
-                                      player2_name, player2_tag, server)
+                                      player2_name, player2_tag, server,
+                                      set_number)
 
         # Delete existing cache
         if os.path.exists(CACHE_FILE):
@@ -114,12 +117,14 @@ def update_stats():
         if 'error' in new_stats:
             update_status = new_stats['error']
             return jsonify({})
-        
+
+        new_stats['set_number'] = set_number
+
         # Check if data has changed
         if old_stats and old_stats == new_stats:
             update_status = "Stats are already up to date!"
             return jsonify({})
-        
+
         # Save new data
         save_cached_data(new_stats)
         update_status = "Stats successfully updated!"

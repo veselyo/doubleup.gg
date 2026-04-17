@@ -190,8 +190,13 @@
                     <div class="card-body">
                         <h5 class="card-title text-center">Set</h5>
                         <select class="form-control text-center"
-                                id="setSelect" disabled>
+                                id="setSelect">
+                            <option value="17">17</option>
                             <option value="16">16</option>
+                            <option value="15">15</option>
+                            <option value="14">14</option>
+                            <option value="13">13</option>
+                            
                         </select>
                     </div>
                 </div>
@@ -212,6 +217,7 @@
         </div>
         
         <div class="stats-card">
+            <h4 id="setDisplay" class="text-center fw-bold mb-0" style="display:none;"></h4>
             <div class="player-info">
                 <div class="player-card">
                     <h4 id="displayPlayer1">Player 1</h4>
@@ -328,7 +334,8 @@
             const player2Name = document.getElementById('player2Name').value;
             const player2Tag = document.getElementById('player2Tag').value;
             const server = document.getElementById('serverSelect').value;
-            
+            const setNumber = document.getElementById('setSelect').value;
+
             if (!player1Name || !player1Tag || !player2Name || !player2Tag) {
                 status.textContent = 'Please fill in all player information';
                 return;
@@ -340,7 +347,8 @@
                 player1Tag: player1Tag,
                 player2Name: player2Name,
                 player2Tag: player2Tag,
-                server: server
+                server: server,
+                setNumber: setNumber
             }))
                 .then(response => {
                     window.location.reload();
@@ -503,6 +511,15 @@
             
             // Update player ranks
             updatePlayerInfo(stats);
+
+            // Show set number if available
+            const setDisplay = document.getElementById('setDisplay');
+            if (stats.set_number != null) {
+                setDisplay.textContent = `Set ${stats.set_number}`;
+                setDisplay.style.display = '';
+            } else {
+                setDisplay.style.display = 'none';
+            }
             
             // Update stats
             document.getElementById('total-games').textContent =
