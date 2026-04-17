@@ -221,12 +221,12 @@
             <div class="player-info">
                 <div class="player-card">
                     <h4 id="displayPlayer1">Player 1</h4>
-                    <p>Rank: <span id="player1Rank">-</span></p>
+                    <p>Current Rank: <span id="player1Rank">-</span></p>
                     <p id="player1Traits" class="favorite-traits"></p>
                 </div>
                 <div class="player-card">
                     <h4 id="displayPlayer2">Player 2</h4>
-                    <p>Rank: <span id="player2Rank">-</span></p>
+                    <p>Current Rank: <span id="player2Rank">-</span></p>
                     <p id="player2Traits" class="favorite-traits"></p>
                 </div>
             </div>
@@ -367,13 +367,18 @@
 
         // Update player info on the page
         function updatePlayerInfo(stats) {
+            const setSelect = document.getElementById('setSelect');
+            const latestSet = setSelect.options[0].value;
+            const selectedSet = setSelect.value;
+            const isLatestSet = selectedSet === latestSet;
+
             document.getElementById('displayPlayer1').textContent = formatPlayerName(stats.player1, 'Player 1');
-            document.getElementById('player1Rank').textContent = stats.player1.rank || '-';
+            document.getElementById('player1Rank').textContent = isLatestSet ? (stats.player1.rank || '-') : '-';
             document.getElementById('player1Traits').innerHTML =
                 'Favorite Traits: ' + formatFavoriteTraits(stats.player1.favorite_traits);
 
             document.getElementById('displayPlayer2').textContent = formatPlayerName(stats.player2, 'Player 2');
-            document.getElementById('player2Rank').textContent = stats.player2.rank || '-';
+            document.getElementById('player2Rank').textContent = isLatestSet ? (stats.player2.rank || '-') : '-';
             document.getElementById('player2Traits').innerHTML =
                 'Favorite Traits: ' + formatFavoriteTraits(stats.player2.favorite_traits);
         }
