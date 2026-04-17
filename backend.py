@@ -333,16 +333,22 @@ def get_stats(game_name1, tag_line1, game_name2, tag_line2, server, set_number):
     # Get puuid for both players using their Riot ID.
     account1, status_code1 = get_account_info(game_name1, tag_line1)
     account2, status_code2 = get_account_info(game_name2, tag_line2)
-    if not account1:
+    if not account1 and not account2:
+        if status_code1 == 403 or status_code2 == 403:
+            return {'error': "Expired/Invalid API key."}
+        return {'error': f"{game_name1}#{tag_line1} and {game_name2}#{tag_line2} not found on {server}"}
+    elif not account1:
         if status_code1 == 404 or status_code1 == 400:
-            return {'error': f"{game_name1}#{tag_line1} on {server} not found"}
+            rank2 = get_double_up_rank(account2['puuid'])
+            return {'error': f"{game_name1}#{tag_line1} on {server} not found", 'player2_rank': rank2}
         if status_code1 == 403:
             return {'error': "Expired/Invalid API key."}
         return {'error': f"{status_code1}: Err getting acc info for player 1"}
-    if not account2:
+    elif not account2:
         if status_code2 == 404 or status_code2 == 400:
-            return {'error': f"{game_name2}#{tag_line2} on {server} not found"}
-        if status_code1 == 403:
+            rank1 = get_double_up_rank(account1['puuid'])
+            return {'error': f"{game_name2}#{tag_line2} on {server} not found", 'player1_rank': rank1}
+        if status_code2 == 403:
             return {'error': "Expired/Invalid API key."}
         return {'error': f"{status_code2}: Err getting acc info for player 2"}
     puuid1 = account1.get('puuid')
@@ -404,5 +410,5 @@ def get_stats(game_name1, tag_line1, game_name2, tag_line2, server, set_number):
         'wins': wins,
         'win_rate': win_rate,
         'best_streak': best_streak,
-        'match_history': match_history or []
+        'match_history': match_history
     }

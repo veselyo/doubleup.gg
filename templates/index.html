@@ -321,12 +321,12 @@
                 .then(data => {
                     if (data.error) {
                         status.textContent = data.error;
-                        const p1NotFound = data.error.includes(`${player1Name}#${player1Tag}`);
-                        const p2NotFound = data.error.includes(`${player2Name}#${player2Tag}`);
+                        const p1NotFound = !data.player1_rank;
+                        const p2NotFound = !data.player2_rank;
                         stats = {
                             ...defaultStats,
-                            player1: { name: p1NotFound ? null : player1Name, tag: p1NotFound ? null : player1Tag, rank: '-', favorite_traits: null },
-                            player2: { name: p2NotFound ? null : player2Name, tag: p2NotFound ? null : player2Tag, rank: '-', favorite_traits: null },
+                            player1: { name: p1NotFound ? null : player1Name, tag: p1NotFound ? null : player1Tag, rank: data.player1_rank || '-', favorite_traits: null },
+                            player2: { name: p2NotFound ? null : player2Name, tag: p2NotFound ? null : player2Tag, rank: data.player2_rank || '-', favorite_traits: null },
                             set_number: parseInt(setNumber)
                         };
                         allGames = [];
