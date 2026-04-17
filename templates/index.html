@@ -321,10 +321,12 @@
                 .then(data => {
                     if (data.error) {
                         status.textContent = data.error;
+                        const p1NotFound = data.error.includes(`${player1Name}#${player1Tag}`);
+                        const p2NotFound = data.error.includes(`${player2Name}#${player2Tag}`);
                         stats = {
                             ...defaultStats,
-                            player1: { name: player1Name, tag: player1Tag, rank: '-', favorite_traits: null },
-                            player2: { name: player2Name, tag: player2Tag, rank: '-', favorite_traits: null },
+                            player1: { name: p1NotFound ? null : player1Name, tag: p1NotFound ? null : player1Tag, rank: '-', favorite_traits: null },
+                            player2: { name: p2NotFound ? null : player2Name, tag: p2NotFound ? null : player2Tag, rank: '-', favorite_traits: null },
                             set_number: parseInt(setNumber)
                         };
                         allGames = [];
@@ -357,27 +359,23 @@
             ).join(' ');
         }
 
+        function formatPlayerName(player, defaultLabel) {
+            if (!player.name) return '-';
+            if (player.name === defaultLabel) return defaultLabel;
+            return `${player.name}#${player.tag}`;
+        }
+
         // Update player info on the page
         function updatePlayerInfo(stats) {
-            // Update player 1 info
-            document.getElementById('displayPlayer1').textContent = 
-                stats.player1.name === "Player 1" ? "Player 1" : 
-                `${stats.player1.name}#${stats.player1.tag}`;
-            document.getElementById('player1Rank').textContent = 
-                stats.player1.rank;
-            document.getElementById('player1Traits').innerHTML = 
-                'Favorite Traits: ' +
-                formatFavoriteTraits(stats.player1.favorite_traits);
+            document.getElementById('displayPlayer1').textContent = formatPlayerName(stats.player1, 'Player 1');
+            document.getElementById('player1Rank').textContent = stats.player1.rank || '-';
+            document.getElementById('player1Traits').innerHTML =
+                'Favorite Traits: ' + formatFavoriteTraits(stats.player1.favorite_traits);
 
-            // Update player 2 info
-            document.getElementById('displayPlayer2').textContent = 
-                stats.player2.name === "Player 2" ? "Player 2" : 
-                `${stats.player2.name}#${stats.player2.tag}`;
-            document.getElementById('player2Rank').textContent = 
-                stats.player2.rank;
-            document.getElementById('player2Traits').innerHTML = 
-                'Favorite Traits: ' +
-                formatFavoriteTraits(stats.player2.favorite_traits);
+            document.getElementById('displayPlayer2').textContent = formatPlayerName(stats.player2, 'Player 2');
+            document.getElementById('player2Rank').textContent = stats.player2.rank || '-';
+            document.getElementById('player2Traits').innerHTML =
+                'Favorite Traits: ' + formatFavoriteTraits(stats.player2.favorite_traits);
         }
         
         // Update pagination based on the number of games
