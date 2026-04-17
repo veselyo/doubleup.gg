@@ -274,60 +274,32 @@
     </div>
     
     <script>
-        // Variables
+        const defaultStats = {
+            player1: { name: 'Player 1', tag: '', rank: null, favorite_traits: null },
+            player2: { name: 'Player 2', tag: '', rank: null, favorite_traits: null },
+            total_games: 0, wins: 0, win_rate: 0, best_streak: 0,
+            match_history: [], set_number: null
+        };
+
         let currentPage = 1;
         let allGames = [];
         const gamesPerPage = 10;
-        let stats = JSON.parse('{{ stats|tojson|safe }}');
+        let stats = JSON.parse(localStorage.getItem('lolduo_stats')) || defaultStats;
         const button = document.getElementById('updateButton');
         const status = document.getElementById('updateStatus');
-        let cooldownEndTime = JSON.parse('{{ cooldown_end_time|tojson|safe }}');
-        let updateStatus = JSON.parse('{{ update_status|tojson|safe }}');
 
-        // Disable button and show updating state
-        function buttonUpdating(button) {
+        function buttonUpdating() {
             button.disabled = true;
             button.textContent = 'Updating...';
-            status.textContent = "Be Patient :)";
+            status.textContent = 'Be Patient :)';
         }
 
-        // Enable button for next update
-        function buttonReady(button) {
+        function buttonReady() {
             button.disabled = false;
             button.textContent = 'Update Data';
-            status.textContent = "";
+            status.textContent = '';
         }
 
-        // Check and show cooldown timer on button after update
-        function checkCooldown() {   
-            // Convert Python timestamp (seconds) to JavaScript timestamp (ms)
-            const cooldownEndTimeMs = cooldownEndTime * 1000;
-            const remaining_seconds = 
-                Math.ceil((cooldownEndTimeMs - Date.now()) / 1000);
-            if (remaining_seconds <= 0) {
-                buttonReady(button);
-            } else {
-                button.disabled = true;
-                button.textContent = `Update Data (${Math.floor
-                                     (remaining_seconds/60)}m
-                                     ${remaining_seconds%60}s)`;
-                status.textContent = updateStatus;
-
-                // Update cooldown timer every second
-                setTimeout(checkCooldown, 1000);
-            }
-        }
-        
-        // Check and update button state
-        function checkButtonStatus() {
-            if (updateStatus === "Be Patient :)") {
-                buttonUpdating(button);
-            } else {
-                checkCooldown();
-            }
-        }
-        
-        // fetch new data and update the page
         function updateStats() {
             const player1Name = document.getElementById('player1Name').value;
             const player1Tag = document.getElementById('player1Tag').value;
@@ -340,21 +312,29 @@
                 status.textContent = 'Please fill in all player information';
                 return;
             }
-            
-            buttonUpdating(button);
+
+            buttonUpdating();
             fetch('/update?' + new URLSearchParams({
-                player1Name: player1Name,
-                player1Tag: player1Tag,
-                player2Name: player2Name,
-                player2Tag: player2Tag,
-                server: server,
-                setNumber: setNumber
+                player1Name, player1Tag, player2Name, player2Tag, server, setNumber
             }))
-                .then(response => {
-                    window.location.reload();
+                .then(r => r.json())
+                .then(data => {
+                    if (data.error) {
+                        status.textContent = data.error;
+                        buttonReady();
+                        return;
+                    }
+                    stats = data;
+                    localStorage.setItem('lolduo_stats', JSON.stringify(stats));
+                    allGames = stats.match_history;
+                    currentPage = 1;
+                    renderStats();
+                    buttonReady();
+                    status.textContent = 'Stats updated!';
                 })
-                .catch(error => {
-                    window.location.reload();
+                .catch(err => {
+                    status.textContent = 'Error: ' + err.message;
+                    buttonReady();
                 });
         }
 
@@ -502,17 +482,9 @@
             updatePagination(allGames.length);
         }
 
-        function main() {
-            // Update button
-            checkButtonStatus();
-            
-            // Use data we already have
-            allGames = stats.match_history;
-            
-            // Update player ranks
+        function renderStats() {
             updatePlayerInfo(stats);
 
-            // Show set number if available
             const setDisplay = document.getElementById('setDisplay');
             if (stats.set_number != null) {
                 setDisplay.textContent = `Set ${stats.set_number}`;
@@ -520,21 +492,21 @@
             } else {
                 setDisplay.style.display = 'none';
             }
-            
-            // Update stats
-            document.getElementById('total-games').textContent =
-                stats.total_games;
+
+            document.getElementById('total-games').textContent = stats.total_games;
             document.getElementById('wins').textContent = stats.wins;
-            document.getElementById('win-rate').textContent =
-                `${stats.win_rate}%`;
-            document.getElementById('best-streak').textContent =
-                stats.best_streak;
-            
-            // Update match history
+            document.getElementById('win-rate').textContent = `${stats.win_rate}%`;
+            document.getElementById('best-streak').textContent = stats.best_streak;
+
             updateGamesList();
         }
-        
-        // Initial load
+
+        function main() {
+            buttonReady();
+            allGames = stats.match_history;
+            renderStats();
+        }
+
         main();
     </script>
 </body>
