@@ -404,5 +404,5 @@ def get_stats(game_name1, tag_line1, game_name2, tag_line2, server, set_number):
         'wins': wins,
         'win_rate': win_rate,
         'best_streak': best_streak,
-        'match_history': match_history
+        'match_history': match_history or []
     }

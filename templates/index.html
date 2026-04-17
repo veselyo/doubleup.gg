@@ -321,12 +321,21 @@
                 .then(data => {
                     if (data.error) {
                         status.textContent = data.error;
+                        stats = {
+                            ...defaultStats,
+                            player1: { name: player1Name, tag: player1Tag, rank: '-', favorite_traits: null },
+                            player2: { name: player2Name, tag: player2Tag, rank: '-', favorite_traits: null },
+                            set_number: parseInt(setNumber)
+                        };
+                        allGames = [];
+                        currentPage = 1;
+                        renderStats();
                         buttonReady();
                         return;
                     }
                     stats = data;
                     localStorage.setItem('lolduo_stats', JSON.stringify(stats));
-                    allGames = stats.match_history;
+                    allGames = stats.match_history || [];
                     currentPage = 1;
                     renderStats();
                     buttonReady();
@@ -503,7 +512,7 @@
 
         function main() {
             buttonReady();
-            allGames = stats.match_history;
+            allGames = stats.match_history || [];
             renderStats();
         }
 
