@@ -34,5 +34,9 @@ def update_stats():
         logger.error(f"Error updating stats: {str(e)}")
         return jsonify({'error': str(e)})
 
+@app.route('/riot.txt')
+def riot_txt():
+    return '6b5d8520-6839-4ab4-ad7b-38af5bf88b68', 200, {'Content-Type': 'text/plain'}
+
 if __name__ == '__main__':
     app.run(debug=True, port=5001, host='0.0.0.0')
